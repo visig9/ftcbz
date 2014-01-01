@@ -4,6 +4,7 @@ import os.path
 import zipfile
 import argparse
 import os
+import shutil
 
 program_version = 1.0
 
@@ -50,5 +51,7 @@ for folder in args.folders:
         for subdir in subdirs:
             try:
                 archive_cbz(subdir)
+                if not args.keep_vol_dir:
+                    shutil.rmtree(subdir)
             except RuntimeError as e:
                 print(e)
