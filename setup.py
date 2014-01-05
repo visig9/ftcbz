@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
         name = 'ftcbz',
-        version = '1.1',
+        version = '1.1.1',
         author = 'Civa Lin',
         author_email = 'larinawf@gmail.com',
         license = 'MIT',

@@ -6,7 +6,7 @@ import argparse
 import os
 import shutil
 
-program_version = '1.1'
+program_version = '1.1.1'
 
 def get_args():
     '''get command line args'''
