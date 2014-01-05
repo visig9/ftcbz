@@ -33,7 +33,7 @@ or
 Install
 =============
 
-Using ``python3-pip``\ ,for example:
+Using ``python3-pip``\ , for example:
 
 .. code:: bash
 

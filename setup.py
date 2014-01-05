@@ -2,11 +2,11 @@
 #-*- coding:utf-8 -*-
 
 from setuptools import setup
-from src.ftcbz.ftcbz import program_version
+# from src.ftcbz.ftcbz import program_version
 
 setup(
         name = 'ftcbz',
-        version = program_version,
+        version = '1.1',
         author = 'Civa Lin',
         author_email = 'larinawf@gmail.com',
         license = 'MIT',
