@@ -1,13 +1,13 @@
 Folder to cbz
 ################
 
-This is a command line tool to archive multiple comic book dir to ``.cbz`` format.
+This is a command line tool to archive multiple comic books "volume dir" to ``.cbz`` format.
 
 Example
 ==============
 
-folder structure
-------------------
+Example folder structure
+---------------------------
 
 ::
 
@@ -19,6 +19,8 @@ folder structure
 
 command
 ---------
+
+To convert above 5 "vol_dir" to cbz, using the following commands...
 
 .. code:: bash
 
@@ -37,4 +39,4 @@ Using ``python3-pip``\ , for example:
 
 .. code:: bash
 
-    python3-pip install ftcbz -U
+    python3-pip install ftcbz
