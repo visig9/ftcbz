@@ -11,11 +11,11 @@ Example folder structure
 
 ::
 
-    folder - comic_book_dir1 - vol_dir1
-                             - vol_dir2
-                             - vol_dir3
-           - comic_book_dir2 - vol_dir1
-                             - vol_dir2
+    folder - comic_book_dir1 - vol_dir_1
+                             - vol_dir_2
+                             - vol_dir_3
+           - comic_book_dir2 - vol_dir_1
+                             - vol_dir_2
 
 command
 ---------
@@ -35,8 +35,6 @@ or
 Install
 =============
 
-Using ``python3-pip``\ , for example:
-
 .. code:: bash
 
-    python3-pip install ftcbz
+    pip install ftcbz
