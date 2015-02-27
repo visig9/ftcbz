@@ -1,7 +1,9 @@
-Folder to cbz
+Freezing to cbz
 ################
 
 This is a command line tool to archive multiple comic books "volume dir" to ``.cbz`` format.
+
+This tool can also convert ``.rar`` & ``.cbr`` files to ``.cbz`` and remove the password too. (require ``unrar``)
 
 Example
 ==============
@@ -37,4 +39,4 @@ Install
 
 .. code:: bash
 
-    pip install ftcbz
+    pip3 install ftcbz

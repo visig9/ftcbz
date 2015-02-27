@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
+import sys
 from setuptools import setup
 # from src.ftcbz.ftcbz import program_version
 
+if not sys.version_info >= (3, 3, 0):
+    print("ERROR: You cannot install because python version should >= 3.3")
+    sys.exit(1)
+
 setup(
     name='ftcbz',
-    version='1.2.0',
+    version='1.2.1',
     author='Civa Lin',
     author_email='larinawf@gmail.com',
     license='MIT',

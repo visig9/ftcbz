@@ -10,7 +10,7 @@ import subprocess
 import uuid
 
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 
 
 def get_args():
@@ -42,7 +42,7 @@ def get_args():
 
     def extra_varify(args):
         if not (args.all or args.folders):
-            print('Neither "--all" nor "COMICDIR". Cancel.\n'
+            print('Neither "--all" nor "COMICDIR" found. Cancel.\n'
                   'Use "-h" for more detail.')
             sys.exit()
         if args.rar:
