@@ -11,7 +11,7 @@ if not sys.version_info >= (3, 3, 0):
 
 setup(
     name='ftcbz',
-    version='1.2.1',
+    version='2.0.0',
     author='Civa Lin',
     author_email='larinawf@gmail.com',
     license='MIT',

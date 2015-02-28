@@ -7,221 +7,326 @@ import os
 import sys
 import shutil
 import subprocess
-import uuid
+import abc
+import tempfile
 
 
-VERSION = '1.2.1'
+VERSION = '2.0.0'
+
+
+class Error(Exception):
+    '''Base exception class of this module'''
+
+
+# Extractor
+
+
+class Extractor(metaclass=abc.ABCMeta):
+    '''ABC which to extract a input target.'''
+    id = 'Extractor ID'
+    description = 'Extractor description'
+
+    class ExtractError(Error):
+        '''Extract operation failed'''
+
+    def __init__(self, **kwargs):
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def check_requirement(cls):
+        '''Test requirement, if failed, print message and exit'''
+
+    @classmethod
+    @abc.abstractmethod
+    def fit(cls, input_path):
+        '''Test the target can be process by this class'''
+
+    @abc.abstractmethod
+    def extract(self, input_path, extract_folder):
+        '''
+        Extract input object to a folder, extract_folder are already exists
+        '''
+
+
+class FolderExtractor(Extractor):
+    '''Folder input dealer'''
+    id = 'dir'
+    description = 'process directory'
+
+    @classmethod
+    def check_requirement(cls):
+        pass
+
+    @classmethod
+    def fit(cls, input_path):
+        return os.path.isdir(input_path)
+
+    def extract(self, input_path, extract_folder):
+        def copytree_to_exists(src, dst):
+            for item in os.listdir(src):
+                s = os.path.join(src, item)
+                d = os.path.join(dst, item)
+                if os.path.isdir(s):
+                    shutil.copytree(s, d)
+                else:
+                    shutil.copy2(s, d)
+
+        copytree_to_exists(input_path, extract_folder)
+
+
+class RarExtractor(Extractor):
+    id = 'rar'
+    description = 'process rar & cbr data (require unrar)'
+
+    def __init__(self, passwords=[], **kwargs):
+        super().__init__()
+        self.passwords = passwords
+
+    @classmethod
+    def check_requirement(cls):
+        if not shutil.which('unrar'):
+            print('Program "unrar" not found. Cancel')
+            sys.exit()
+
+    @classmethod
+    def fit(cls, input_path):
+        if not os.path.isfile(input_path):
+            return False
+        trash, ext = os.path.splitext(input_path)
+        if ext not in ('.rar', '.cbr'):
+            return False
+        return True
+
+    def extract(self, input_path, extract_folder):
+        def get_cmd(input_path, extract_folder, password=None):
+            '''generate one command'''
+            unrar = shutil.which('unrar')
+            cmd = [unrar, 'e', '-inul']
+            if password:
+                cmd.append('-p' + password)
+            else:
+                cmd.append('-p-')
+            cmd.append(input_path)
+            cmd.append(extract_folder + '/')
+            return cmd
+
+        def get_cmds(input_path, extract_folder):
+            '''generate all commands'''
+            yield get_cmd(input_path, extract_folder)  # no password version
+            for password in self.passwords:
+                yield get_cmd(input_path, extract_folder, password)
+
+        # try every passwords for unrar operation
+        for cmd in get_cmds(input_path, extract_folder):
+            rtn = subprocess.call(cmd)
+            if rtn != 10:  # password error code == 10
+                break
+
+        # varify operation success.
+        if rtn != 0:
+            info = '"{}" unrar failed.'.format(input_path)
+            if rtn == 10:
+                info = ' '.join([info, 'Passwords not match.'])
+            else:
+                info = ' '.join([info, 'unrar error code => {}'.format(rtn)])
+            raise type(self).ExtractError(info)
+
+
+# Compressor
+
+
+class Compressor(metaclass=abc.ABCMeta):
+    '''ABC which to compress a folder.'''
+    # class CompressError(Error):
+    #     '''Compress operation failed.'''
+
+    @classmethod
+    @abc.abstractmethod
+    def compress(cls, source_folder, comic_folder, volume_name):
+        '''compress inputfolder to outputpath
+
+            source_folder   = A folder need to compress.
+            comic_folder    = A result container folder.
+            volume_name     = A filename without extension.
+            return  => compressed file path
+        '''
+
+
+class CbzCompressor(Compressor):
+    '''cbz compressor'''
+    def compress(cls, source_folder, comic_folder, volume_name):
+        final_path = os.path.join(comic_folder, volume_name + '.cbz')
+        with zipfile.ZipFile(final_path, 'w') as zfile:
+            for path, dirs, filenames in os.walk(source_folder):
+                for filename in filenames:
+                    abs_filename = os.path.join(path, filename)
+                    rel_filename = os.path.relpath(
+                        abs_filename, source_folder)
+                    filename_in_zip = os.path.join(volume_name, rel_filename)
+                    zfile.write(abs_filename, filename_in_zip)
+        return final_path
+
+
+# Framework
+
+
+def get_object_paths(comic_folder):
+    '''return every files and folders under container folder directly.'''
+    object_paths = [os.path.join(comic_folder, obj)
+                    for obj in os.listdir(comic_folder)]
+    return sorted(object_paths)
+
+
+def convert(object_path, extractors=[], compressor=CbzCompressor):
+    '''Convert target in path by extractor and compressor
+
+        If no extractor can fit this path, do nothing and return => None
+        else, return a convert result path.
+    '''
+    for extractor in extractors:
+        if extractor.fit(object_path):
+            with tempfile.TemporaryDirectory() as tmp_dirname:
+                try:
+                    extractor.extract(input_path=object_path,
+                                      extract_folder=tmp_dirname)
+                except Extractor.ExtractError as e:
+                    print(e)
+                    return None
+
+                comic_folder = os.path.dirname(object_path)
+                baseext = os.path.basename(object_path)
+                volume_name, ext = os.path.splitext(baseext)
+                compress_filepath = compressor.compress(
+                    source_folder=tmp_dirname,
+                    comic_folder=comic_folder,
+                    volume_name=volume_name)
+                return compress_filepath
+        else:
+            continue
+    return None
+
+
+# Main Logic & User Interface
+
+
+def get_used_extractors(args):
+    extractors = [eclass(passwords=args.passwords)
+                  for eclass in Extractor.__subclasses__()
+                  if eclass.id in args.itypes]
+    return extractors
+
+
+def get_comic_folders(args):
+    """Extract all comic folders from user input."""
+    def get_sub_dirs(folder):
+        subdirs = [os.path.join(folder, subdir) for subdir
+                   in os.listdir(folder)
+                   if os.path.isdir(os.path.join(folder, subdir))]
+        return sorted(subdirs)
+
+    comic_folders = {folder for folder in args.folders}
+    if args.all:
+        for all_folder in args.all:
+            for folder in get_sub_dirs(all_folder):
+                comic_folders.add(folder)
+    return sorted(comic_folders)
 
 
 def get_args():
     '''get command line args'''
-    parser = argparse.ArgumentParser(
-        description='Assign some comic dirs and archive to .cbz format.')
-    parser.add_argument(
-        'folders', metavar='COMICDIR', type=str, nargs='*',
-        help='A comic book folders.'
-             ' Each COMICDIR contain multiple "volume dirs".')
-    parser.add_argument(
-        '-d', '--delete', dest='delete',
-        action='store_const', const=True, default=False,
-        help='Delete "volume dir" after the archive complete.')
-    parser.add_argument(
-        '--rar', dest='rar',
-        action='store_const', const=True, default=False,
-        help='Also convert "volume.rar" to "volume.cbz" and remove password.'
-             ' (Required unrar)')
-    parser.add_argument(
-        '-p', '--passwords', metavar='PW', dest='passwords',
-        action='store', default=None, nargs="*",
-        help='Some unzip passwords for rar files.')
-    parser.add_argument(
-        '-a', '--all', metavar='FOLDER', dest='all', type=str, nargs='+',
-        help='Some folders has multiple COMICDIR.')
-    parser.add_argument(
-        '-v', '--version', action='version', version=VERSION)
+    def get_all_extractors_info():
+        '''collect extractors info'''
+        extractors = Extractor.__subclasses__()
+        infos = []
+        for e in extractors:
+            infos.append('{:>6} - {}'.format(e.id, e.description))
+        info = '\n'.join(infos)
+        ids = [e.id for e in extractors]
+        return (info, ids)
 
     def extra_varify(args):
+        if not sys.version_info >= (3, 3, 0):
+            print('ftcbz required running on python>=3.3. Cancel.')
         if not (args.all or args.folders):
-            print('Neither "--all" nor "COMICDIR" found. Cancel.\n'
+            print('Neither "-a ALLDIR" nor "COMICDIR" found. Cancel.\n'
                   'Use "-h" for more detail.')
             sys.exit()
-        if args.rar:
-            if not shutil.which('unrar'):
-                print('Program "unrar" not found. Cancel')
-                sys.exit()
-        if args.passwords:
-            if not args.rar:
-                print('Arguments "--passwords" only work with "--rar".'
-                      ' Cancel.')
-                sys.exit()
+        for e in get_used_extractors(args):
+            e.check_requirement()
 
-    args = parser.parse_args()
+    def parse_args():
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawTextHelpFormatter,
+            description='Freezing some comic dirs or files'
+                        ' and archive to .cbz format!')
+
+        parser.add_argument(
+            'folders', metavar='COMICDIR', type=str, nargs='*',
+            help='Comic book directories.'
+                 '\nEach COMICDIR contain multiple VOLUME dirs or files.'
+                 '\n(which like volume1.rar or vol_1/).')
+
+        parser.add_argument(
+            '-a', '--all', metavar='ALLDIR', dest='all', type=str, nargs='+',
+            help='All directories under ALLDIR directly'
+                 '\nwill become COMICDIRs.')
+
+        parser.add_argument(
+            '-d', '--delete', dest='delete',
+            action='store_const', const=True, default=False,
+            help='Delete data source when archive complete.')
+
+        info, ids = get_all_extractors_info()
+        parser.add_argument(
+            '-i', '--input-types', metavar='TYPE', dest='itypes',
+            action='store', default=[FolderExtractor.id], nargs="*",
+            choices=ids,
+            help='\n'.join([
+                'Choice some volume types you want to convert.',
+                'Available:',
+                info,
+                '(default: %(default)s)']))
+
+        parser.add_argument(
+            '-p', '--passwords', metavar='PW', dest='passwords',
+            action='store', default=[], nargs="*",
+            help='One or more unzip passwords for source files.')
+
+        parser.add_argument(
+            '-v', '--version', action='version', version=VERSION)
+
+        args = parser.parse_args()
+        return args
+
+    args = parse_args()
     extra_varify(args)
-
     return args
 
 
-def archive_cbz(folder):
-    '''zip the folder to .cbz format in the folder's parent dir'''
-    if os.path.isdir(folder):
-        basename = os.path.basename(folder)
-        filename = basename + '.cbz'
-        dirname = os.path.dirname(folder)
-        filepath = os.path.join(dirname, filename)
-        with zipfile.ZipFile(filepath, 'w') as zfile:
-            for path, dirs, files in os.walk(folder):
-                for fn in files:
-                    absfn = os.path.join(path, fn)
-                    zfn = os.path.relpath(absfn, dirname)
-                    zfile.write(absfn, zfn)
-        print('Archive OK: ' + filepath)
-    else:
-        raise RuntimeError(
-                'folder: "{}" Not a dir! do nothing'.format(folder))
-
-
-def get_subdirs(folder):
-    '''
-    return a list which has multiple directorys which under the "folder"
-    directly.
-    '''
-    subdirs = [os.path.join(folder, subdir) for subdir
-               in os.listdir(folder)
-               if os.path.isdir(os.path.join(folder, subdir))]
-    return sorted(subdirs)
-
-
-def get_rars(folder):
-    '''
-    return a list which has multiple rar files which under the "folder"
-    directly.
-    '''
-    def is_rar(filename):
-        filepath = os.path.join(folder, filename)
-        if not os.path.isfile(filepath):
-            return False
-        trash, ext = os.path.splitext(filename)
-        if ext not in ['.rar', '.cbr']:
-            return False
-        return True
-
-    rars = [os.path.join(folder, filename) for filename
-            in os.listdir(folder)
-            if is_rar(filename)]
-    return sorted(rars)
-
-
-def rar2cbz(rarpath, passwords=[]):
-    '''Convert rar to cbz file'''
-    def get_tmp_dirpath(rarpath):
-        '''this dirpath will holding the unzip data.'''
-        dirname = os.path.dirname(rarpath)
-        baseext = os.path.basename(rarpath)
-        base, ext = os.path.splitext(baseext)
-        tmp_dirpath = os.path.join(dirname, base)
-        return tmp_dirpath
-
-    def get_cmd(rarpath, tmp_dirpath, password=None):
-        '''generate command list'''
-        unrar = shutil.which('unrar')
-        cmd = [unrar, 'e', '-inul']
-        if password:
-            cmd.append('-p' + password)
-        else:
-            cmd.append('-p-')
-        cmd.append(rarpath)
-        cmd.append(tmp_dirpath + '/')
-        return cmd
-
-    def get_cmds(rarpath, tmp_dirpath, passwords=[]):
-        yield get_cmd(rarpath, tmp_dirpath)  # no password version
-        for password in passwords:
-            yield get_cmd(rarpath, tmp_dirpath, password)
-
-    def backup_conflict_path(tmp_dirpath):
-        '''
-        Move the original conflict things to tmp_oripath if necessary
-
-            return = a temporary path string for original data.
-                     None mean no conflict.
-        '''
-        if os.path.exists(tmp_dirpath):
-            dirbase, ext = os.path.splitext(tmp_dirpath)
-            tmp_oripath = dirbase + '_tmp_' + uuid.uuid4().hex[:8]
-            shutil.move(tmp_dirpath, tmp_oripath)
-            return tmp_oripath
-        else:
-            return None
-
-    def restore_conflict_path(tmp_dirpath, tmp_oripath):
-        '''restore what backup_conflict_path() done.'''
-        if tmp_oripath:
-            shutil.move(tmp_oripath, tmp_dirpath)
-
-    tmp_dirpath = get_tmp_dirpath(rarpath)
-    tmp_oripath = backup_conflict_path(tmp_dirpath)  # backup
-
-    # try every passwords for unrar operation
-    for cmd in get_cmds(rarpath, tmp_dirpath, passwords):
-        rtn = subprocess.call(cmd)
-        if rtn != 10:  # password error code == 10
-            break
-
-    if rtn != 0:  # some unknown error, cancel.
-        if os.path.isdir(tmp_dirpath):
-            shutil.rmtree(tmp_dirpath)
-        print(
-            'ERROR: "{}" unrar failed. error code => {}'.format(rarpath, rtn))
-
-    if os.path.isdir(tmp_dirpath):
-        archive_cbz(tmp_dirpath)      # generate cbz
-        shutil.rmtree(tmp_dirpath)    # remove tmp_dirpath
-
-    restore_conflict_path(tmp_dirpath, tmp_oripath)  # restore
-
-
-def process_comicdir(folder, delete=False, rar=False, passwords=[]):
-    '''folder which include multiple volume dirs.
-
-        delete    = Original files will be delete.
-        rar       = True will process rar files as volume dir too.
-        passwords = list of rar passwords.
-        '''
-    if os.path.isdir(folder):
-        for subdir in get_subdirs(folder):
-            try:
-                archive_cbz(subdir)
-                if delete:
-                    shutil.rmtree(subdir)
-            except RuntimeError as e:
-                print(e)
-        if rar:
-            for rarfile in get_rars(folder):
-                try:
-                    rar2cbz(rarfile, passwords)
-                    if delete:
-                        os.remove(rarfile)
-                except RuntimeError as e:
-                    print(e)
+def delete_object_path(object_path):
+    '''delete object path, whether it is file or dir'''
+    if os.path.isdir(object_path):
+        shutil.rmtree(object_path)
+    elif os.path.isfile(object_path):
+        os.remove(object_path)
 
 
 def main():
     '''entry point'''
-    def get_comic_folders(args):
-        """Each comic folder container multiple volumes."""
-        comic_folders = {folder for folder in args.folders}
-        if args.all:
-            for all_folder in args.all:
-                for folder in get_subdirs(all_folder):
-                    comic_folders.add(folder)
-        return comic_folders
-
     args = get_args()
-    comic_folders = get_comic_folders(args)
 
-    for folder in comic_folders:
-        process_comicdir(
-            folder, args.delete, rar=args.rar, passwords=args.passwords)
+    extractors = get_used_extractors(args)
+    compressor = CbzCompressor()
+
+    for comic_folder in get_comic_folders(args):
+        for object_path in get_object_paths(comic_folder):
+            is_ok = convert(object_path, extractors, compressor)
+            if is_ok:
+                if args.delete:
+                    delete_object_path(object_path)
+                info = 'Archive OK: {}'.format(object_path)
+                print(info)
 
 
 if __name__ == '__main__':
