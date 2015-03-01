@@ -2,8 +2,9 @@
 # coding=utf-8
 
 import sys
+
 from setuptools import setup
-# from src.ftcbz.ftcbz import program_version
+import src.ftcbz.ftcbz
 
 if not sys.version_info >= (3, 3, 0):
     print("ERROR: You cannot install because python version should >= 3.3")
@@ -11,7 +12,7 @@ if not sys.version_info >= (3, 3, 0):
 
 setup(
     name='ftcbz',
-    version='2.0.0',
+    version=src.ftcbz.ftcbz.VERSION,
     author='Civa Lin',
     author_email='larinawf@gmail.com',
     license='MIT',
