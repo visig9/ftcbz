@@ -68,8 +68,10 @@ Changelog
 2.1.0
 ---------
 
-- Support ``--output-alldir`` to send result to another folder.
-- Support ``--replace`` to control replace old result files or not.
+- Support ``--output-alldir`` to transfer result data to other folder.
+- Support ``--replace`` to decide program should replace old result or not.
+- Support new extractor ``zip`` and new compressor ``dir``.
+  It make reverse operation is possible. (use ``--reverse`` for shortly.)
 
 2.0.0
 ---------

@@ -13,9 +13,24 @@ import tempfile
 
 VERSION = '2.1.0'
 
+# Utils
+
 
 class Error(Exception):
     '''Base exception class of this module'''
+
+
+def delete_object_path(object_path):
+    '''delete object path, whether it is file or dir'''
+    if os.path.isdir(object_path):
+        shutil.rmtree(object_path)
+    elif os.path.isfile(object_path):
+        os.remove(object_path)
+    dirname = os.path.dirname(object_path)
+    try:
+        os.removedirs(dirname)
+    except OSError:
+        pass
 
 
 # Extractor
@@ -52,7 +67,7 @@ class Extractor(metaclass=abc.ABCMeta):
 class FolderExtractor(Extractor):
     '''Folder input dealer'''
     id = 'dir'
-    description = 'process directory'
+    description = 'Fit directories'
 
     @classmethod
     def check_requirement(cls):
@@ -75,9 +90,42 @@ class FolderExtractor(Extractor):
         copytree_to_exists(input_path, extract_folder)
 
 
+class ZipExtractor(Extractor):
+    id = 'zip'
+    description = 'Fit zip & cbz data files'
+
+    def __init__(self, passwords=[], **kwargs):
+        super().__init__()
+        self.passwords = passwords
+
+    @classmethod
+    def check_requirement(cls):
+        pass
+
+    @classmethod
+    def fit(cls, input_path):
+        if not os.path.isfile(input_path):
+            return False
+        trash, ext = os.path.splitext(input_path)
+        if ext not in ('.zip', '.cbz'):
+            return False
+        return True
+
+    def extract(self, input_path, extract_folder):
+        with zipfile.ZipFile(input_path, 'r') as zfile:
+            pwd_list = [None]
+            pwd_list.extend([p.encode() for p in self.passwords])
+            for pwd in pwd_list:
+                try:
+                    zfile.extractall(extract_folder, pwd=pwd)
+                    return
+                except RuntimeError:
+                    continue
+
+
 class RarExtractor(Extractor):
     id = 'rar'
-    description = 'process rar & cbr data (require unrar)'
+    description = 'Fit rar & cbr data files (require unrar)'
 
     def __init__(self, passwords=[], **kwargs):
         super().__init__()
@@ -138,6 +186,8 @@ class RarExtractor(Extractor):
 
 class Compressor(metaclass=abc.ABCMeta):
     '''ABC which to compress a folder.'''
+    id = 'Compressor ID'
+    description = 'Compressor description'
     # class CompressError(Error):
     #     '''Compress operation failed.'''
 
@@ -151,6 +201,8 @@ class Compressor(metaclass=abc.ABCMeta):
     def compress(cls, source_folder, new_comic_folder, volume_name):
         '''compress inputfolder to outputpath
 
+            If outputpath exists, always replace it.
+
             source_folder    = A folder need to compress.
             new_comic_folder = A result container folder.
             volume_name      = A filename without extension.
@@ -160,6 +212,9 @@ class Compressor(metaclass=abc.ABCMeta):
 
 class CbzCompressor(Compressor):
     '''cbz compressor'''
+    id = 'cbz'
+    description = 'Standard comic book archive format.'
+
     @classmethod
     def get_final_path(cls, new_comic_folder, volume_name):
         return os.path.join(new_comic_folder, volume_name + '.cbz')
@@ -175,6 +230,36 @@ class CbzCompressor(Compressor):
                         abs_filename, source_folder)
                     filename_in_zip = os.path.join(volume_name, rel_filename)
                     zfile.write(abs_filename, filename_in_zip)
+        return final_path
+
+
+class FolderCompressor(Compressor):
+    '''folder compressor, do nothing but move the data.'''
+    id = 'dir'
+    description = 'Flating to folders. Useful for rollback.'
+
+    @classmethod
+    def get_final_path(cls, new_comic_folder, volume_name):
+        return os.path.join(new_comic_folder, volume_name)
+
+    @classmethod
+    def compress(cls, source_folder, new_comic_folder, volume_name):
+        def new_source_folder(source_folder):
+            '''Avoid packing only one folder by another folder.'''
+            paths = os.listdir(source_folder)
+            if len(paths) == 1:
+                path0 = os.path.join(source_folder, paths[0])
+                if os.path.isdir(path0):
+                    source_folder = os.path.join(source_folder, path0)
+            return source_folder
+
+        final_path = cls.get_final_path(new_comic_folder, volume_name)
+        if os.path.exists(final_path):
+            delete_object_path(final_path)
+
+        source_folder = new_source_folder(source_folder)
+
+        shutil.copytree(source_folder, final_path)
         return final_path
 
 
@@ -254,27 +339,48 @@ def get_used_extractors(args):
     return extractors
 
 
+def get_used_compressor(args):
+    for C in Compressor.__subclasses__():
+        if C.id == args.output_format:
+            return C()
+
+
 def get_args():
     '''get command line args'''
+    def generate_all_info(classes):
+        '''generate all info form exreactors or compressors'''
+        infos = []
+        for c in classes:
+            infos.append('{:>6} - {}'.format(c.id, c.description))
+        info = '\n'.join(infos)
+        ids = [c.id for c in classes]
+        return (info, ids)
+
     def get_all_extractors_info():
         '''collect extractors info'''
         extractors = Extractor.__subclasses__()
-        infos = []
-        for e in extractors:
-            infos.append('{:>6} - {}'.format(e.id, e.description))
-        info = '\n'.join(infos)
-        ids = [e.id for e in extractors]
-        return (info, ids)
+        return generate_all_info(extractors)
+
+    def get_all_compressors_info():
+        '''collect extractors info'''
+        compressors = Compressor.__subclasses__()
+        return generate_all_info(compressors)
 
     def extra_varify(args):
         if not sys.version_info >= (3, 3, 0):
             print('ftcbz required running on python>=3.3. Cancel.')
+            sys.exit()
         if not (args.all or args.folders):
             print('Neither "-a ALLDIR" nor "COMICDIR" found. Cancel.\n'
                   'Use "-h" for more detail.')
             sys.exit()
         for e in get_used_extractors(args):
             e.check_requirement()
+
+    def extra_modify(args):
+        if args.reverse:
+            args.itypes = [ZipExtractor.id]
+            args.output_format = FolderCompressor.id
 
     def parse_args():
         parser = argparse.ArgumentParser(
@@ -296,8 +402,8 @@ def get_args():
         parser.add_argument(
             '-o', '--output-alldir', metavar='OUTPUT_ALLDIR',
             dest='output_alldir', type=str,
-            help='If not assign, the result data will be generated'
-                 '\nin the source dir.')
+            help='If not assign, the files will be generated'
+                 '\nin their source directories.')
 
         parser.add_argument(
             '-r', '--replace', dest='replace',
@@ -309,15 +415,35 @@ def get_args():
             action='store_const', const=True, default=False,
             help='Delete data source when archive complete.')
 
-        info, ids = get_all_extractors_info()
+        parser.add_argument(
+            '--reverse', dest='reverse',
+            action='store_const', const=True, default=False,
+            help='Reverse standard archive operation. Equal to:\n'
+                 '"-i {zipid} -o {dirid}"\n'
+                 'It will overwrite your "-i" and "-o" setting.'
+                 .format(zipid=ZipExtractor.id, dirid=FolderCompressor.id)
+                 )
+
+        e_info, e_ids = get_all_extractors_info()
         parser.add_argument(
             '-i', '--input-types', metavar='TYPE', dest='itypes',
             action='store', default=[FolderExtractor.id], nargs="*",
-            choices=ids,
+            choices=e_ids,
             help='\n'.join([
-                'Choice some volume types you want to convert.',
+                'Choice some input volume types you want to convert.',
                 'Available types:',
-                info,
+                e_info,
+                '(default: %(default)s)']))
+
+        c_info, c_ids = get_all_compressors_info()
+        parser.add_argument(
+            '-f', '--output-format', metavar='FORMAT', dest='output_format',
+            action='store', default=CbzCompressor.id,
+            choices=c_ids,
+            help='\n'.join([
+                'Choice one of output volume format.',
+                'Available formats:',
+                c_info,
                 '(default: %(default)s)']))
 
         parser.add_argument(
@@ -332,6 +458,7 @@ def get_args():
         return args
 
     args = parse_args()
+    extra_modify(args)
     extra_varify(args)
     return args
 
@@ -363,32 +490,27 @@ def main():
             new_comic_folder = ori_comic_folder
         return new_comic_folder
 
-    def delete_object_path(object_path):
-        '''delete object path, whether it is file or dir'''
-        if os.path.isdir(object_path):
-            shutil.rmtree(object_path)
-        elif os.path.isfile(object_path):
-            os.remove(object_path)
-        dirname = os.path.dirname(object_path)
-        try:
-            os.removedirs(dirname)
-        except OSError:
-            pass
+    def delete(request_delete, status, object_path):
+        '''delete object_path'''
+        if status not in ('not_fit', 'extract_error'):
+            if request_delete:
+                delete_object_path(object_path)
 
-    def print_info(status, object_path):
+    def print_info(status, final_path):
+        '''print process info for each object'''
         if status != 'not_fit':
             if status == 'archived':
-                info = 'Archived OK: {}'.format(object_path)
+                info = 'Archived OK: -> {}'.format(final_path)
             if status == 'already_exists':
-                info = 'Already Exist: {}'.format(object_path)
+                info = 'Already Exist: -> {}'.format(final_path)
             if status == 'extract_error':
-                info = 'Extract error: {}'.format(object_path)
+                info = 'Extract error: -> {}'.format(final_path)
             print(info)
 
     args = get_args()
 
     extractors = get_used_extractors(args)
-    compressor = CbzCompressor()
+    compressor = get_used_compressor(args)
 
     for ori_comic_folder in get_ori_comic_folders(args):
         new_comic_folder = get_new_comic_folder(args, ori_comic_folder)
@@ -400,10 +522,7 @@ def main():
                 new_comic_folder=new_comic_folder,
                 replace=args.replace)
 
-            if status not in ('not_fit', 'extract_error'):
-                if args.delete:
-                    delete_object_path(object_path)
-
+            delete(args.delete, status, object_path)
             print_info(status, final_path)
 
 if __name__ == '__main__':
