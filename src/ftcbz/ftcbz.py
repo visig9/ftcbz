@@ -327,7 +327,8 @@ def get_ori_comic_folders(args):
 def get_new_comic_folder(args, ori_comic_folder):
     '''get new_comic_folder for convert() function'''
     if args.output_alldir:
-        basename = os.path.basename(ori_comic_folder)
+        norm_folder = os.path.normpath(ori_comic_folder)
+        basename = os.path.basename(norm_folder)
         new_comic_folder = os.path.join(args.output_alldir, basename)
     else:
         new_comic_folder = ori_comic_folder
