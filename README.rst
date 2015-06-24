@@ -61,3 +61,16 @@ Make sure your python >= 3.3, then...
 .. code:: bash
 
     pip3 install ftcbz
+
+Changelog
+=========
+
+2.1.0
+---------
+
+- Support output result to another folder.
+
+2.0.0
+---------
+
+- Support ``rar`` format.

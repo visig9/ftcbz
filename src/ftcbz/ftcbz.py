@@ -11,7 +11,7 @@ import abc
 import tempfile
 
 
-VERSION = '2.0.1'
+VERSION = '2.1.0'
 
 
 class Error(Exception):
@@ -178,11 +178,21 @@ def get_object_paths(comic_folder):
     return sorted(object_paths)
 
 
-def convert(object_path, extractors=[], compressor=CbzCompressor):
+def convert(object_path, extractors=[], compressor=CbzCompressor,
+            new_comic_folder=None):
     '''Convert target in path by extractor and compressor
 
-        If no extractor can fit this path, do nothing and return => None
-        else, return a convert result path.
+        object_path      == source path
+        extractors       == list of extractor, only the x which
+                           "x.fit(objpath) == True" will be used.
+        compressor       == compressor
+        new_comic_folder == the output comic_folder.
+                            if == None, comic_folder == object_path dir
+
+        return =>
+            If no extractor can fit this path, do nothing and None.
+            else, return a convert result path.
+
     '''
     for extractor in extractors:
         if extractor.fit(object_path):
@@ -194,7 +204,11 @@ def convert(object_path, extractors=[], compressor=CbzCompressor):
                     print(e)
                     return None
 
-                comic_folder = os.path.dirname(object_path)
+                if new_comic_folder is None:
+                    comic_folder = os.path.dirname(object_path)
+                else:
+                    comic_folder = new_comic_folder
+                    os.makedirs(comic_folder, exist_ok=True)
                 baseext = os.path.basename(object_path)
                 volume_name, ext = os.path.splitext(baseext)
                 compress_filepath = compressor.compress(
@@ -208,29 +222,6 @@ def convert(object_path, extractors=[], compressor=CbzCompressor):
 
 
 # Main Logic & User Interface
-
-
-def get_used_extractors(args):
-    extractors = [eclass(passwords=args.passwords)
-                  for eclass in Extractor.__subclasses__()
-                  if eclass.id in args.itypes]
-    return extractors
-
-
-def get_comic_folders(args):
-    """Extract all comic folders from user input."""
-    def get_sub_dirs(folder):
-        subdirs = [os.path.join(folder, subdir) for subdir
-                   in os.listdir(folder)
-                   if os.path.isdir(os.path.join(folder, subdir))]
-        return sorted(subdirs)
-
-    comic_folders = {folder for folder in args.folders}
-    if args.all:
-        for all_folder in args.all:
-            for folder in get_sub_dirs(all_folder):
-                comic_folders.add(folder)
-    return sorted(comic_folders)
 
 
 def get_args():
@@ -273,6 +264,12 @@ def get_args():
                  '\nwill become COMICDIRs.')
 
         parser.add_argument(
+            '-o', '--output-alldir', metavar='OUTPUT_ALLDIR',
+            dest='output_alldir', type=str,
+            help='If not assign, the result data will be generated'
+                 '\nin the source dir.')
+
+        parser.add_argument(
             '-d', '--delete', dest='delete',
             action='store_const', const=True, default=False,
             help='Delete data source when archive complete.')
@@ -284,7 +281,7 @@ def get_args():
             choices=ids,
             help='\n'.join([
                 'Choice some volume types you want to convert.',
-                'Available:',
+                'Available types:',
                 info,
                 '(default: %(default)s)']))
 
@@ -304,12 +301,50 @@ def get_args():
     return args
 
 
+def get_used_extractors(args):
+    extractors = [eclass(passwords=args.passwords)
+                  for eclass in Extractor.__subclasses__()
+                  if eclass.id in args.itypes]
+    return extractors
+
+
+def get_ori_comic_folders(args):
+    """Extract all comic folders from user input."""
+    def get_sub_dirs(folder):
+        subdirs = [os.path.join(folder, subdir) for subdir
+                   in os.listdir(folder)
+                   if os.path.isdir(os.path.join(folder, subdir))]
+        return sorted(subdirs)
+
+    comic_folders = {folder for folder in args.folders}
+    if args.all:
+        for all_folder in args.all:
+            for folder in get_sub_dirs(all_folder):
+                comic_folders.add(folder)
+    return sorted(comic_folders)
+
+
+def get_new_comic_folder(args, ori_comic_folder):
+    '''get new_comic_folder for convert() function'''
+    if args.output_alldir:
+        basename = os.path.basename(ori_comic_folder)
+        new_comic_folder = os.path.join(args.output_alldir, basename)
+    else:
+        new_comic_folder = ori_comic_folder
+    return new_comic_folder
+
+
 def delete_object_path(object_path):
     '''delete object path, whether it is file or dir'''
     if os.path.isdir(object_path):
         shutil.rmtree(object_path)
     elif os.path.isfile(object_path):
         os.remove(object_path)
+    dirname = os.path.dirname(object_path)
+    try:
+        os.removedirs(dirname)
+    except OSError:
+        pass
 
 
 def main():
@@ -319,9 +354,11 @@ def main():
     extractors = get_used_extractors(args)
     compressor = CbzCompressor()
 
-    for comic_folder in get_comic_folders(args):
-        for object_path in get_object_paths(comic_folder):
-            is_ok = convert(object_path, extractors, compressor)
+    for ori_comic_folder in get_ori_comic_folders(args):
+        for object_path in get_object_paths(ori_comic_folder):
+            new_comic_folder = get_new_comic_folder(args, ori_comic_folder)
+            is_ok = convert(
+                object_path, extractors, compressor, new_comic_folder)
             if is_ok:
                 if args.delete:
                     delete_object_path(object_path)
