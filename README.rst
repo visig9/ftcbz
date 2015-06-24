@@ -68,7 +68,8 @@ Changelog
 2.1.0
 ---------
 
-- Support output result to another folder.
+- Support ``--output-alldir`` to send result to another folder.
+- Support ``--replace`` to control replace old result files or not.
 
 2.0.0
 ---------
