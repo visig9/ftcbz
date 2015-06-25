@@ -306,11 +306,12 @@ def convert(object_path, extractors=[], compressor=CbzCompressor,
     compress_filepath = compressor.get_final_path(
         new_comic_folder=new_comic_folder,
         volume_name=volume_name)
-    if not replace and os.path.exists(compress_filepath):
-        return 'already_exists', compress_filepath
 
     for extractor in extractors:
         if extractor.fit(object_path):
+            if not replace and os.path.exists(compress_filepath):
+                return 'already_exists', compress_filepath
+
             with tempfile.TemporaryDirectory() as tmp_dirname:
                 try:
                     extractor.extract(input_path=object_path,

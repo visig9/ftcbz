@@ -65,10 +65,11 @@ Make sure your python >= 3.3, then...
 Changelog
 =========
 
-2.1.1
+2.1.2
 ---------
 
 - Fix typo in ``--help``
+- Fix unexpected delete when use ``--delete`` option.
 
 2.1.0
 ---------
