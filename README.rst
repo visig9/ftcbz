@@ -65,6 +65,11 @@ Make sure your python >= 3.3, then...
 Changelog
 =========
 
+2.1.1
+---------
+
+- Fix typo in ``--help``
+
 2.1.0
 ---------
 

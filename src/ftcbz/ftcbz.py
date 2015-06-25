@@ -419,8 +419,8 @@ def get_args():
             '--reverse', dest='reverse',
             action='store_const', const=True, default=False,
             help='Reverse standard archive operation. Equal to:\n'
-                 '"-i {zipid} -o {dirid}"\n'
-                 'It will overwrite your "-i" and "-o" setting.'
+                 '"-i {zipid} -f {dirid}"\n'
+                 'It will overwrite your "-i" and "-f" setting.'
                  .format(zipid=ZipExtractor.id, dirid=FolderCompressor.id)
                  )
 
