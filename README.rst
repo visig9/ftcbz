@@ -65,6 +65,11 @@ Make sure your python >= 3.3, then...
 Changelog
 =========
 
+2.1.4
+---------
+
+- Fix unexpected delete data source when some rare case.
+
 2.1.3
 ---------
 

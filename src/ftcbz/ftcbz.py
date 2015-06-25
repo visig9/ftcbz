@@ -11,7 +11,7 @@ import abc
 import tempfile
 
 
-VERSION = '2.1.3'
+VERSION = '2.1.4'
 
 # Utils
 
@@ -491,11 +491,14 @@ def main():
             new_comic_folder = ori_comic_folder
         return new_comic_folder
 
-    def delete(request_delete, status, object_path):
+    def delete(request_delete, status, object_path, final_path):
         '''delete object_path'''
         if status not in ('not_fit', 'extract_error'):
             if request_delete:
-                delete_object_path(object_path)
+                abs_object_path = os.path.abspath(object_path)
+                abs_final_path = os.path.abspath(final_path)
+                if abs_object_path != abs_final_path:
+                    delete_object_path(object_path)
 
     def print_info(status, final_path):
         '''print process info for each object'''
@@ -523,7 +526,7 @@ def main():
                 new_comic_folder=new_comic_folder,
                 replace=args.replace)
 
-            delete(args.delete, status, object_path)
+            delete(args.delete, status, object_path, final_path)
             print_info(status, final_path)
 
 if __name__ == '__main__':
