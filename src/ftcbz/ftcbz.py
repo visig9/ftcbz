@@ -94,9 +94,9 @@ class ZipExtractor(Extractor):
     id = 'zip'
     description = 'Fit zip & cbz data files'
 
-    def __init__(self, passwords=[], **kwargs):
+    def __init__(self, passwords=None, **kwargs):
         super().__init__()
-        self.passwords = passwords
+        self.passwords = [] if passwords is None else passwords
 
     @classmethod
     def check_requirement(cls):
@@ -127,9 +127,9 @@ class RarExtractor(Extractor):
     id = 'rar'
     description = 'Fit rar & cbr data files (require unrar)'
 
-    def __init__(self, passwords=[], **kwargs):
+    def __init__(self, passwords=None, **kwargs):
         super().__init__()
-        self.passwords = passwords
+        self.passwords = [] if passwords is None else passwords
 
     @classmethod
     def check_requirement(cls):
@@ -273,7 +273,7 @@ def get_object_paths(comic_folder):
     return sorted(object_paths)
 
 
-def convert(object_path, extractors=[], compressor=CbzCompressor,
+def convert(object_path, extractors=None, compressor=CbzCompressor,
             new_comic_folder=None, replace=False):
     '''Convert target in path by extractor and compressor
 
@@ -297,6 +297,8 @@ def convert(object_path, extractors=[], compressor=CbzCompressor,
                     Extractor internal error. failed.
 
     '''
+    extractors = [] if extractors is None else extractors
+
     if new_comic_folder is None:
         new_comic_folder = os.path.dirname(object_path)
     os.makedirs(new_comic_folder, exist_ok=True)
