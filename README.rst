@@ -65,6 +65,11 @@ Make sure your python >= 3.3, then...
 Changelog
 =========
 
+2.2.0
+---------
+
+- Tweak command line interface.
+
 2.1.4
 ---------
 

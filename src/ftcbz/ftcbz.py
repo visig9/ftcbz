@@ -11,7 +11,7 @@ import abc
 import tempfile
 
 
-VERSION = '2.1.4'
+VERSION = '2.2.0'
 
 # Utils
 
@@ -67,7 +67,7 @@ class Extractor(metaclass=abc.ABCMeta):
 class FolderExtractor(Extractor):
     '''Folder input dealer'''
     id = 'dir'
-    description = 'Fit directories'
+    description = 'directories'
 
     @classmethod
     def check_requirement(cls):
@@ -92,7 +92,7 @@ class FolderExtractor(Extractor):
 
 class ZipExtractor(Extractor):
     id = 'zip'
-    description = 'Fit zip & cbz data files'
+    description = 'zip & cbz data files'
 
     def __init__(self, passwords=None, **kwargs):
         super().__init__()
@@ -125,7 +125,7 @@ class ZipExtractor(Extractor):
 
 class RarExtractor(Extractor):
     id = 'rar'
-    description = 'Fit rar & cbr data files (require unrar)'
+    description = 'rar & cbr data files (require unrar)'
 
     def __init__(self, passwords=None, **kwargs):
         super().__init__()
@@ -213,7 +213,7 @@ class Compressor(metaclass=abc.ABCMeta):
 class CbzCompressor(Compressor):
     '''cbz compressor'''
     id = 'cbz'
-    description = 'Standard comic book archive format.'
+    description = 'standard comic book archive format.'
 
     @classmethod
     def get_final_path(cls, new_comic_folder, volume_name):
@@ -236,7 +236,7 @@ class CbzCompressor(Compressor):
 class FolderCompressor(Compressor):
     '''folder compressor, do nothing but move the data.'''
     id = 'dir'
-    description = 'Flating to folders. Useful for rollback.'
+    description = 'directories, useful for rollback.'
 
     @classmethod
     def get_final_path(cls, new_comic_folder, volume_name):
@@ -338,7 +338,7 @@ def convert(object_path, extractors=None, compressor=CbzCompressor,
 def get_used_extractors(args):
     extractors = [eclass(passwords=args.passwords)
                   for eclass in Extractor.__subclasses__()
-                  if eclass.id in args.itypes]
+                  if eclass.id in args.input_format]
     return extractors
 
 
@@ -382,7 +382,7 @@ def get_args():
 
     def extra_modify(args):
         if args.reverse:
-            args.itypes = [ZipExtractor.id]
+            args.input_format = [ZipExtractor.id]
             args.output_format = FolderCompressor.id
 
     def parse_args():
@@ -422,25 +422,25 @@ def get_args():
             '--reverse', dest='reverse',
             action='store_const', const=True, default=False,
             help='Reverse standard archive operation. Equal to:\n'
-                 '"-i {zipid} -f {dirid}"\n'
-                 'It will overwrite your "-i" and "-f" setting.'
+                 '"--input-formats {zipid} --output-format {dirid}"\n'
+                 'It will overwrite your manual setting.'
                  .format(zipid=ZipExtractor.id, dirid=FolderCompressor.id)
                  )
 
         e_info, e_ids = get_all_extractors_info()
         parser.add_argument(
-            '-i', '--input-types', metavar='TYPE', dest='itypes',
+            '--input-formats', metavar='FORMAT', dest='input_format',
             action='store', default=[FolderExtractor.id], nargs="*",
             choices=e_ids,
             help='\n'.join([
-                'Choice some input volume types you want to convert.',
-                'Available types:',
+                'Choice some input volume formats you want to convert.',
+                'Available formats:',
                 e_info,
                 '(default: %(default)s)']))
 
         c_info, c_ids = get_all_compressors_info()
         parser.add_argument(
-            '-f', '--output-format', metavar='FORMAT', dest='output_format',
+            '--output-format', metavar='FORMAT', dest='output_format',
             action='store', default=CbzCompressor.id,
             choices=c_ids,
             help='\n'.join([
