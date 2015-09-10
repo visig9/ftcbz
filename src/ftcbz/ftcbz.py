@@ -389,7 +389,7 @@ def get_args():
         parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter,
             description='Freezing some comic dirs or files'
-                        ' and archive to .cbz format!')
+                        ' to .cbz format!')
 
         parser.add_argument(
             'folders', metavar='COMICDIR', type=str, nargs='*',
