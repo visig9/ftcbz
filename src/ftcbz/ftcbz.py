@@ -11,7 +11,7 @@ import abc
 import tempfile
 
 
-VERSION = '2.2.0'
+VERSION = '2.2.1'
 
 # Utils
 
@@ -150,7 +150,7 @@ class RarExtractor(Extractor):
         def get_cmd(input_path, extract_folder, password=None):
             '''generate one command'''
             unrar = shutil.which('unrar')
-            cmd = [unrar, 'e', '-inul']
+            cmd = [unrar, 'x', '-inul']
             if password:
                 cmd.append('-p' + password)
             else:
@@ -168,7 +168,7 @@ class RarExtractor(Extractor):
         # try every passwords for unrar operation
         for cmd in get_cmds(input_path, extract_folder):
             rtn = subprocess.call(cmd)
-            if rtn != 10:  # password error code == 10
+            if rtn not in (10, 3):  # password error code == 10, 3
                 break
 
         # varify operation success.

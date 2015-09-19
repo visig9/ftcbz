@@ -65,6 +65,13 @@ Make sure your python >= 3.3, then...
 Changelog
 =========
 
+2.2.1
+---------
+
+- Fixed unrar password error code == 10 problem.
+- Use unrar `x` command to replace `e` command
+  to avoid the same filename in difference sub folders.
+
 2.2.0
 ---------
 
