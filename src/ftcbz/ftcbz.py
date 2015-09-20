@@ -11,7 +11,7 @@ import abc
 import tempfile
 
 
-VERSION = '2.3.0'
+VERSION = '2.3.1'
 
 # Utils
 
@@ -374,7 +374,7 @@ def get_args():
             print('ftcbz required running on python>=3.3. Cancel.')
             sys.exit()
         if not (args.all or args.folders):
-            print('Neither "-a ALLDIR" nor "COMICDIR" found. Cancel.\n'
+            print('Neither "ALLDIR" nor "COMICDIR" found. Cancel.\n'
                   'Use "-h" for more detail.')
             sys.exit()
         for e in get_used_extractors(args):
@@ -422,7 +422,7 @@ def get_args():
             '--reverse', dest='reverse',
             action='store_const', const=True, default=False,
             help='Reverse standard archive operation. Equal to:\n'
-                 '"--input-formats {zipid} --output-format {dirid}"\n'
+                 '"--extractors {zipid} --compressor {dirid}"\n'
                  'It will overwrite your manual setting.'
                  .format(zipid=ZipExtractor.id, dirid=FolderCompressor.id)
                  )
@@ -436,7 +436,7 @@ def get_args():
                 'Choice the volume format(s) you want to process.',
                 'Available formats:',
                 e_info,
-                '(default: %(default)s)']))
+                '(default: {})'.format(FolderExtractor.id)]))
 
         c_info, c_ids = get_all_compressors_info()
         parser.add_argument(

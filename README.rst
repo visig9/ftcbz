@@ -65,6 +65,11 @@ Make sure your python >= 3.3, then...
 Changelog
 =========
 
+2.3.1
+---------
+
+- Fixed: ``--help`` message error
+
 2.3.0
 ---------
 
