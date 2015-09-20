@@ -11,7 +11,7 @@ import abc
 import tempfile
 
 
-VERSION = '2.2.1'
+VERSION = '2.3.0'
 
 # Utils
 
@@ -338,13 +338,13 @@ def convert(object_path, extractors=None, compressor=CbzCompressor,
 def get_used_extractors(args):
     extractors = [eclass(passwords=args.passwords)
                   for eclass in Extractor.__subclasses__()
-                  if eclass.id in args.input_format]
+                  if eclass.id in args.extractors]
     return extractors
 
 
 def get_used_compressor(args):
     for C in Compressor.__subclasses__():
-        if C.id == args.output_format:
+        if C.id == args.compressor:
             return C()
 
 
@@ -382,13 +382,13 @@ def get_args():
 
     def extra_modify(args):
         if args.reverse:
-            args.input_format = [ZipExtractor.id]
-            args.output_format = FolderCompressor.id
+            args.extractors = [ZipExtractor.id]
+            args.compressor = FolderCompressor.id
 
     def parse_args():
         parser = argparse.ArgumentParser(
             formatter_class=argparse.RawTextHelpFormatter,
-            description='Freezing some comic dirs or files'
+            description='Freezing a lot of comic directories & files'
                         ' to .cbz format!')
 
         parser.add_argument(
@@ -429,22 +429,22 @@ def get_args():
 
         e_info, e_ids = get_all_extractors_info()
         parser.add_argument(
-            '--input-formats', metavar='FORMAT', dest='input_format',
+            '-e', '--extractors', metavar='EXTRACTOR', dest='extractors',
             action='store', default=[FolderExtractor.id], nargs="*",
             choices=e_ids,
             help='\n'.join([
-                'Choice some input volume formats you want to convert.',
+                'Choice the volume format(s) you want to process.',
                 'Available formats:',
                 e_info,
                 '(default: %(default)s)']))
 
         c_info, c_ids = get_all_compressors_info()
         parser.add_argument(
-            '--output-format', metavar='FORMAT', dest='output_format',
+            '-c', '--compressor', metavar='COMPRESSOR', dest='compressor',
             action='store', default=CbzCompressor.id,
             choices=c_ids,
             help='\n'.join([
-                'Choice one of output volume format.',
+                'Choice a output format.',
                 'Available formats:',
                 c_info,
                 '(default: %(default)s)']))
