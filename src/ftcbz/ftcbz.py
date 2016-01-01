@@ -11,7 +11,7 @@ import abc
 import tempfile
 
 
-VERSION = '2.3.1'
+VERSION = '2.3.2'
 
 # Utils
 
@@ -303,7 +303,10 @@ def convert(object_path, extractors=None, compressor=CbzCompressor,
         new_comic_folder = os.path.dirname(object_path)
     os.makedirs(new_comic_folder, exist_ok=True)
     baseext = os.path.basename(object_path)
-    volume_name, ext = os.path.splitext(baseext)
+    if os.path.isfile(object_path):  # file
+        volume_name, ext = os.path.splitext(baseext)
+    else:  # folder
+        volume_name = baseext
 
     compress_filepath = compressor.get_final_path(
         new_comic_folder=new_comic_folder,

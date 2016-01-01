@@ -65,6 +65,11 @@ Make sure your python >= 3.3, then...
 Changelog
 =========
 
+2.3.2
+---------
+
+- Fixed: Name calculate error when volume directory name contain dot (.).
+
 2.3.1
 ---------
 
