@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding=utf-8
+"""Ftcbz install script."""
 
 import sys
 
@@ -29,7 +30,6 @@ setup(
     packages=['ftcbz'],
     entry_points={
         'console_scripts': ['ftcbz = ftcbz.ftcbz:main'],
-        'setuptools.installation': ['eggsecutable = ftcbz.ftcbz:main']
-        },
+    },
     keywords='cbz comic archive',
-    )
+)

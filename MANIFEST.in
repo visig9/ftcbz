@@ -1,0 +1,7 @@
+recursive-include src/ftcbz *
+recursive-exclude src/ftcbz *.swp
+recursive-exclude src/ftcbz *.pyc
+recursive-exclude src/ftcbz *.pyo
+include README.md
+include CHANGELOG.md
+include setup.py
